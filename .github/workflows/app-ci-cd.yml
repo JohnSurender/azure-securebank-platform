@@ -20,7 +20,7 @@ jobs:
         service: [accounts-service, transactions-service]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with: { python-version: "3.12" }
       - run: pip install pytest -r apps/${{ matrix.service }}/requirements.txt
       - run: pytest -q apps/${{ matrix.service }}/tests
