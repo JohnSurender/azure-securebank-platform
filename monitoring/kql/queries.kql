@@ -1,0 +1,23 @@
+// 1. WAF blocks in the last 24h by rule
+AzureDiagnostics
+| where Category == "ApplicationGatewayFirewallLog" and action_s == "Blocked"
+| where TimeGenerated > ago(24h)
+| summarize hits = count() by ruleId_s, Message
+| top 20 by hits
+
+// 2. Pod restarts (crash loops) in securebank namespace
+KubePodInventory
+| where Namespace == "securebank"
+| summarize restarts = max(PodRestartCount) by Name, bin(TimeGenerated, 15m)
+| where restarts > 3
+
+// 3. Transfers flagged for manual review (AML guardrail)
+ContainerLogV2
+| where PodNamespace == "securebank" and ContainerName == "app"
+| where LogMessage has "flagged for manual review"
+| project TimeGenerated, PodName, LogMessage
+
+// 4. Key Vault access denied (possible misconfiguration or attack)
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.KEYVAULT" and ResultSignature == "Forbidden"
+| project TimeGenerated, OperationName, CallerIPAddress, identity_claim_oid_g

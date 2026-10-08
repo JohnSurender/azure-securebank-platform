@@ -1,0 +1,8 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "svc.name" . }}
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels: {{- include "svc.selector" . | nindent 6 }}

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SecureBank</title>
+  <style>
+    body{font-family:system-ui,sans-serif;margin:0;background:#f4f6f8;color:#1b2430}
+    header{background:#0b3d5c;color:#fff;padding:1rem 2rem}
+    main{max-width:720px;margin:2rem auto;padding:0 1rem}
+    .card{background:#fff;border-radius:8px;padding:1.5rem;margin-bottom:1rem;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+    code{background:#eef2f5;padding:.1rem .3rem;border-radius:4px}
+  </style>
+</head>
+<body>
+  <header><h1>SecureBank</h1></header>
+  <main>
+    <div class="card"><h2>Platform status</h2><p id="status">Checking services...</p></div>
+    <div class="card"><h2>APIs</h2>
+      <p><code>/api/accounts</code> - Accounts service</p>
+      <p><code>/api/transfers</code> - Transactions service</p>
+    </div>
+  </main>
+  <script>
+    Promise.all(['/api/accounts/healthz','/api/transfers/healthz'].map(u=>fetch(u).then(r=>r.ok).catch(()=>false)))
+      .then(([a,t])=>document.getElementById('status').textContent=`Accounts: ${a?'UP':'DOWN'} | Transactions: ${t?'UP':'DOWN'}`);
+  </script>
+</body>
+</html>

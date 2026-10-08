@@ -1,0 +1,7 @@
+replicaCount: 3
+autoscaling: { enabled: true, minReplicas: 3, maxReplicas: 12, targetCPUUtilizationPercentage: 65 }
+pdb: { minAvailable: 2 }
+resources:
+  requests: { cpu: 250m, memory: 256Mi }
+  limits:   { cpu: "1", memory: 512Mi }
+env: { APP_ENV: prod }

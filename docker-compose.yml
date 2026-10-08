@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:16-alpine
+    env_file: .env
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      retries: 10
+  accounts:
+    build: ./apps/accounts-service
+    env_file: .env
+    ports: ["8001:8000"]
+    depends_on: { db: { condition: service_healthy } }
+  transactions:
+    build: ./apps/transactions-service
+    env_file: .env
+    environment:
+      ACCOUNTS_URL: http://accounts:8000
+    ports: ["8002:8000"]
+    depends_on: [accounts]
+  web:
+    build: ./apps/web-frontend
+    ports: ["8080:8080"]
+    depends_on: [accounts, transactions]

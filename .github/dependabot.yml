@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: terraform
+    directory: /infra/envs/dev
+    schedule: { interval: weekly }
+  - package-ecosystem: pip
+    directory: /apps/accounts-service
+    schedule: { interval: weekly }
+  - package-ecosystem: pip
+    directory: /apps/transactions-service
+    schedule: { interval: weekly }
+  - package-ecosystem: docker
+    directory: /apps/accounts-service
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }

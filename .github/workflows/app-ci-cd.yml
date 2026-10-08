@@ -1,0 +1,102 @@
+name: app-ci-cd
+
+on:
+  pull_request:
+    paths: ["apps/**", "deploy/**"]
+  push:
+    branches: [main]
+    paths: ["apps/**", "deploy/**"]
+
+permissions:
+  id-token: write
+  contents: read
+  security-events: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [accounts-service, transactions-service]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r apps/${{ matrix.service }}/requirements.txt
+      - run: pytest -q apps/${{ matrix.service }}/tests
+
+  build-scan-push:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [accounts-service, transactions-service, web-frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t ${{ vars.ACR_NAME }}.azurecr.io/${{ matrix.service }}:${{ github.sha }} apps/${{ matrix.service }}
+      - name: Trivy image scan (fail on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ vars.ACR_NAME }}.azurecr.io/${{ matrix.service }}:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+      - name: Azure login (OIDC)
+        if: github.ref == 'refs/heads/main'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Push to ACR
+        if: github.ref == 'refs/heads/main'
+        run: |
+          az acr login --name ${{ vars.ACR_NAME }}
+          docker push ${{ vars.ACR_NAME }}.azurecr.io/${{ matrix.service }}:${{ github.sha }}
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build-scan-push
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        env: [dev, staging, prod]
+    environment: ${{ matrix.env }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-helm@v4
+      - uses: azure/use-kubelogin@v1
+        with: { kubelogin-version: v0.1.4 }
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials -g rg-securebank-${{ matrix.env }}-uks -n aks-securebank-${{ matrix.env }}-uks --overwrite-existing
+          kubelogin convert-kubeconfig -l azurecli
+      - name: Apply namespace baseline
+        run: kubectl apply -f deploy/k8s/base/
+      - name: Helm upgrade
+        run: |
+          # service:ingress-path:container-port
+          for entry in accounts-service:/api/accounts:8000 transactions-service:/api/transfers:8000 web-frontend:/:8080; do
+            IFS=: read -r svc path port <<< "$entry"
+            helm upgrade --install "$svc" deploy/helm/banking-service \
+              -n securebank --create-namespace \
+              -f deploy/helm/banking-service/values.yaml \
+              -f deploy/helm/banking-service/values-${{ matrix.env }}.yaml \
+              --set nameOverride="$svc" \
+              --set image.repository=${{ vars.ACR_NAME }}.azurecr.io/$svc \
+              --set image.tag=${{ github.sha }} \
+              --set ingress.path="$path" \
+              --set containerPort="$port" \
+              --set serviceAccount.workloadIdentityClientId=${{ vars.WORKLOAD_CLIENT_ID }} \
+              --wait --timeout 5m --atomic
+          done
+      - name: Smoke test
+        run: bash scripts/smoke-test.sh ${{ matrix.env }}

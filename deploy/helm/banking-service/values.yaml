@@ -1,0 +1,44 @@
+nameOverride: ""
+replicaCount: 2
+
+image:
+  repository: acrsecurebankdevuks.azurecr.io/accounts-service
+  tag: latest
+  pullPolicy: IfNotPresent
+
+containerPort: 8000
+
+serviceAccount:
+  create: true
+  workloadIdentityClientId: ""   # from terraform output workload_identity_client_id
+
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits:   { cpu: 500m, memory: 256Mi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+pdb:
+  minAvailable: 1
+
+ingress:
+  enabled: true
+  className: azure-application-gateway
+  path: /api/accounts
+  host: ""
+
+keyVault:
+  enabled: false
+  name: ""
+  tenantId: ""
+  secrets: []        # e.g. [pg-admin-password]
+
+env:
+  APP_ENV: dev
+
+nodeSelector:
+  workload: banking

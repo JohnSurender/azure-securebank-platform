@@ -1,0 +1,18 @@
+{
+  "properties": {
+    "displayName": "SecureBank - require environment, project and data_class tags",
+    "policyType": "Custom",
+    "mode": "Indexed",
+    "parameters": {},
+    "policyRule": {
+      "if": {
+        "anyOf": [
+          { "field": "tags['environment']", "exists": "false" },
+          { "field": "tags['project']", "exists": "false" },
+          { "field": "tags['data_class']", "exists": "false" }
+        ]
+      },
+      "then": { "effect": "deny" }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "svc.name" . }}
+  annotations:
+    appgw.ingress.kubernetes.io/backend-path-prefix: "/"
+    appgw.ingress.kubernetes.io/health-probe-path: "/healthz"
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - {{- with .Values.ingress.host }}
+      host: {{ . }}
+      {{- end }}
+      http:
+        paths:
+          - path: {{ .Values.ingress.path }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "svc.name" . }}
+                port: { number: 80 }
+{{- end }}
