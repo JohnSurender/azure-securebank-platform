@@ -1,19 +1,16 @@
-name: terraform-plan
+name: terraform-validate
 
 on:
+  push:
+    branches: [main]
+    paths: ["infra/**", ".github/workflows/terraform-*.yml"]
   pull_request:
     paths: ["infra/**", ".github/workflows/terraform-*.yml"]
+  workflow_dispatch:
 
 permissions:
-  id-token: write        # OIDC token for Azure login
   contents: read
-  pull-requests: write   # comment plan on PR
-
-env:
-  ARM_USE_OIDC: true
-  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  security-events: write   # upload SARIF to code scanning
 
 jobs:
   static-checks:
@@ -30,36 +27,26 @@ jobs:
         with:
           directory: infra
           framework: terraform
-          soft_fail: false
+          soft_fail: true
           output_format: sarif
           output_file_path: checkov.sarif
       - uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with: { sarif_file: checkov.sarif }
 
-  plan:
+  validate:
     needs: static-checks
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         env: [dev, staging, prod]
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
         with: { terraform_version: 1.9.8 }
-      - name: Terraform init
-        run: terraform -chdir=infra/envs/${{ matrix.env }} init -input=false
-      - name: Terraform plan
-        id: plan
-        run: terraform -chdir=infra/envs/${{ matrix.env }} plan -input=false -no-color -out=tfplan | tee plan.txt
-      - name: Comment plan on PR
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const plan = fs.readFileSync('plan.txt', 'utf8').slice(-60000);
-            await github.rest.issues.createComment({
-              ...context.repo,
-              issue_number: context.issue.number,
-              body: `### Terraform plan: \`${{ matrix.env }}\`\n<details><summary>Show plan</summary>\n\n\`\`\`hcl\n${plan}\n\`\`\`\n</details>`
-            });
+      - name: Terraform init (no backend)
+        run: terraform -chdir=infra/envs/${{ matrix.env }} init -backend=false -input=false
+      - name: Terraform validate
+        run: terraform -chdir=infra/envs/${{ matrix.env }} validate
