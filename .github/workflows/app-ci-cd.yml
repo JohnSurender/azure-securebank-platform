@@ -19,7 +19,7 @@ jobs:
       matrix:
         service: [accounts-service, transactions-service]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install pytest -r apps/${{ matrix.service }}/requirements.txt
@@ -33,7 +33,7 @@ jobs:
       matrix:
         service: [accounts-service, transactions-service, web-frontend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build image (local only, not pushed)
         run: docker build -t securebank/${{ matrix.service }}:${{ github.sha }} apps/${{ matrix.service }}
       - name: Trivy image scan (report only)
@@ -51,7 +51,7 @@ jobs:
       matrix:
         env: [dev, staging, prod]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: azure/setup-helm@v4
       - name: Helm lint
         run: helm lint deploy/helm/banking-service -f deploy/helm/banking-service/values.yaml -f deploy/helm/banking-service/values-${{ matrix.env }}.yaml
