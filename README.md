@@ -28,35 +28,6 @@ A reference platform for a **UK retail-banking application** (accounts and money
 
 ## Architecture
 
-## Architecture
-
-```mermaid
-flowchart TB
-    user([Internet users]) --> waf
-
-    subgraph hub["Hub VNet (10.x.0.0/16)"]
-        waf["Application Gateway + WAF"]
-    end
-
-    subgraph spoke["Spoke VNet (10.x.1.0/16)"]
-        aks["AKS cluster<br/>accounts, transactions, web-frontend"]
-        pg[("PostgreSQL Flexible Server<br/>private access")]
-    end
-
-    waf --> aks
-    aks --> pg
-    acr["Azure Container Registry"] -. image pull .-> aks
-    kv["Key Vault"] -. secrets via CSI driver .-> aks
-    aks -. logs and metrics .-> mon["Log Analytics + Azure Monitor alerts"]
-    pg -. diagnostics .-> mon
-    waf -. diagnostics .-> mon
-
-    subgraph cicd["GitHub Actions (validate only)"]
-        ci["fmt, tflint, Checkov, validate,<br/>Helm lint, Trivy, Gitleaks, CodeQL"]
-    end
-    ci -. checks .-> hub
-```
-
 ![Architecture](docs/images/architecture.png)
 
 | Layer | Service | Why |
@@ -75,11 +46,12 @@ More detail: [docs/architecture.md](docs/architecture.md) | [Network topology](d
 
 ## CI/CD
 
-![Pipeline](docs/images/cicd-pipeline.png)
+GitHub Actions runs checks only; nothing deploys without your own Azure subscription.
 
-- **PR:** fmt, tflint, Checkov, Gitleaks, CodeQL, pytest, Trivy image scan, then `terraform plan` posted as a PR comment for each environment.
-- **Merge to main:** images pushed to ACR with immutable SHA tags, then promoted **dev (auto) -> staging (1 approver) -> prod (2 approvers)** via GitHub Environments.
-- **Safe deploys:** `helm --atomic` auto-rolls back on failure; smoke tests gate every promotion.
+- **Terraform:** `fmt`, `tflint`, Checkov, then `init -backend=false` and `validate` for dev, staging and prod.
+- **Applications:** pytest for both services, Docker builds, Trivy image scan (report only) and Helm lint/template for every environment.
+- **Security:** Gitleaks (secrets), CodeQL (Python) and Trivy config scan, on every PR and weekly.
+- **Deployment (designed, not run):** `terraform-apply` is a manual workflow using GitHub OIDC. The intended promotion model is dev (auto), then staging (1 approver), then prod (2 approvers) with Helm `--atomic` rollback and smoke tests. See `docs/environments.md`.
 
 ## Repository layout
 
