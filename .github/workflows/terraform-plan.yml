@@ -20,7 +20,7 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with: { terraform_version: 1.9.8 }
       - run: terraform fmt -check -recursive infra
-      - uses: terraform-linters/setup-tflint@v4
+      - uses: terraform-linters/setup-tflint@v6
       - run: tflint --init && tflint --recursive
       - name: Checkov
         uses: bridgecrewio/checkov-action@v12
