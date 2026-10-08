@@ -36,7 +36,7 @@ jobs:
       - name: Build image
         run: docker build -t ${{ vars.ACR_NAME }}.azurecr.io/${{ matrix.service }}:${{ github.sha }} apps/${{ matrix.service }}
       - name: Trivy image scan (fail on HIGH/CRITICAL)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ vars.ACR_NAME }}.azurecr.io/${{ matrix.service }}:${{ github.sha }}
           severity: HIGH,CRITICAL
