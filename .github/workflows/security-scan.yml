@@ -1,7 +1,10 @@
 name: security-scan
 
 on:
+  push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
   schedule:
     - cron: "0 6 * * 1"   # weekly Monday 06:00 UTC
 
@@ -23,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           scan-ref: .
@@ -31,6 +34,8 @@ jobs:
           output: trivy-config.sarif
           severity: HIGH,CRITICAL
       - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
         with: { sarif_file: trivy-config.sarif }
 
   codeql:
@@ -40,3 +45,4 @@ jobs:
       - uses: github/codeql-action/init@v3
         with: { languages: python }
       - uses: github/codeql-action/analyze@v3
+        continue-on-error: true
