@@ -10,7 +10,7 @@ on:
 
 permissions:
   contents: read
-  security-events: write   # upload SARIF to code scanning
+  security-events: write
 
 jobs:
   static-checks:
