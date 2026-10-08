@@ -17,7 +17,45 @@ A reference platform for a **UK retail-banking application** (accounts and money
 
 ---
 
+> **Reference architecture - not deployed.**
+> This repository is a portfolio blueprint for a secure banking-style platform on Azure.
+> It has been validated with `terraform fmt`, `tflint`, Checkov, `terraform validate`,
+> Helm lint and Trivy scans, but has **not** been applied to a live Azure subscription.
+> Security controls are aligned with PCI DSS-style requirements (for example, 365-day log
+> retention in prod); this is not a certified or audited implementation.
+> Deployment workflows are manual-only and need your own Azure subscription and OIDC setup
+> (see `bootstrap/`).
+
 ## Architecture
+
+## Architecture
+
+```mermaid
+flowchart TB
+    user([Internet users]) --> waf
+
+    subgraph hub["Hub VNet (10.x.0.0/16)"]
+        waf["Application Gateway + WAF"]
+    end
+
+    subgraph spoke["Spoke VNet (10.x.1.0/16)"]
+        aks["AKS cluster<br/>accounts, transactions, web-frontend"]
+        pg[("PostgreSQL Flexible Server<br/>private access")]
+    end
+
+    waf --> aks
+    aks --> pg
+    acr["Azure Container Registry"] -. image pull .-> aks
+    kv["Key Vault"] -. secrets via CSI driver .-> aks
+    aks -. logs and metrics .-> mon["Log Analytics + Azure Monitor alerts"]
+    pg -. diagnostics .-> mon
+    waf -. diagnostics .-> mon
+
+    subgraph cicd["GitHub Actions (validate only)"]
+        ci["fmt, tflint, Checkov, validate,<br/>Helm lint, Trivy, Gitleaks, CodeQL"]
+    end
+    ci -. checks .-> hub
+```
 
 ![Architecture](docs/images/architecture.png)
 
