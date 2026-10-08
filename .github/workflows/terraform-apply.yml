@@ -23,7 +23,7 @@ jobs:
     environment: ${{ matrix.env }}   # staging/prod have required reviewers
     concurrency: tf-${{ matrix.env }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: hashicorp/setup-terraform@v3
         with: { terraform_version: 1.9.8 }
       - run: terraform -chdir=infra/envs/${{ matrix.env }} init -input=false
