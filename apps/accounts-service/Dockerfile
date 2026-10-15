@@ -1,11 +1,11 @@
 # ---- build stage ----
-FROM python:3.12-slim AS build
+FROM python:3.14-slim AS build
 WORKDIR /src
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # ---- runtime stage (non-root, read-only friendly) ----
-FROM python:3.12-slim
+FROM python:3.14-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 RUN groupadd -g 10001 app && useradd -u 10001 -g app -s /usr/sbin/nologin app
 WORKDIR /app
